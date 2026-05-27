@@ -73,18 +73,24 @@ Use this package when you specifically want one MCP tool that delegates a prompt
 
 ## Installation & Usage
 
-The recommended way to use this server is by installing it by using `npx`.
+The recommended way to use this fork is to run it directly from GitHub with `npx`.
 
-The `npx` examples below require the package to be published to npm as `@mirusu400/claude-code-mcp`. For an unpublished local checkout, use the local Codex configuration shown in the Codex CLI section.
+This works because the package has a `prepare` script that builds `dist/server.js` after npm fetches the repository. The GitHub examples use the `main` branch; pin a tag or commit SHA instead of `main` if you need reproducible installs.
 
 ```json
     "claude-code-mcp": {
       "command": "npx",
       "args": [
         "-y",
-        "@mirusu400/claude-code-mcp@latest"
+        "github:mirusu400/claude-code-mcp#main"
       ]
     },
+```
+
+If this package is published to npm, you can also use:
+
+```bash
+npx -y @mirusu400/claude-code-mcp@latest
 ```
 
 To use a custom Claude CLI binary name, you can specify the environment variable:
@@ -94,7 +100,7 @@ To use a custom Claude CLI binary name, you can specify the environment variable
       "command": "npx",
       "args": [
         "-y",
-        "@mirusu400/claude-code-mcp@latest"
+        "github:mirusu400/claude-code-mcp#main"
       ],
       "env": {
         "CLAUDE_CLI_NAME": "claude-custom"
@@ -139,7 +145,7 @@ Cursor uses `mcp.json`.
 Codex stores MCP servers in `~/.codex/config.toml`. You can add this server with the Codex CLI:
 
 ```bash
-codex mcp add claude_code -- npx -y @mirusu400/claude-code-mcp@latest
+codex mcp add claude_code -- npx -y github:mirusu400/claude-code-mcp#main
 ```
 
 On Windows, launching `npx` through `cmd` is the most reliable form:
@@ -147,7 +153,7 @@ On Windows, launching `npx` through `cmd` is the most reliable form:
 ```toml
 [mcp_servers.claude_code]
 command = "cmd"
-args = ["/c", "npx", "-y", "@mirusu400/claude-code-mcp@latest"]
+args = ["/c", "npx", "-y", "github:mirusu400/claude-code-mcp#main"]
 startup_timeout_ms = 20_000
 ```
 
