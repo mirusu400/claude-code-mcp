@@ -10,7 +10,7 @@ This method is suitable if you prefer not to install the server globally or want
 
 1.  **Clone the repository:**
     ```bash
-    git clone https://github.com/steipete/claude-code-mcp.git # Or your fork/actual repo URL
+    git clone https://github.com/mirusu400/claude-code-mcp.git
     cd claude-code-mcp
     ```
 
@@ -70,7 +70,7 @@ This method allows you to install the package globally but have it point to your
 
 1.  **Clone the repository (if not already done):**
     ```bash
-    git clone https://github.com/steipete/claude-code-mcp.git # Or your fork/actual repo URL
+    git clone https://github.com/mirusu400/claude-code-mcp.git
     cd claude-code-mcp
     ```
 
@@ -116,4 +116,4 @@ This method allows you to install the package globally but have it point to your
 
 - **TypeScript:** The server is written in TypeScript. Code is in the `src/` directory and compiled to `dist/`.
 - **Prerequisites:** Ensure Node.js v20+ and a working Claude CLI are installed.
-- **Contributing:** Submit issues and pull requests to the main [GitHub repository](https://github.com/steipete/claude-code-mcp).
+- **Contributing:** Submit issues and pull requests to the main [GitHub repository](https://github.com/mirusu400/claude-code-mcp).

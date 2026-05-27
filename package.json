@@ -1,8 +1,8 @@
 {
-  "name": "@steipete/claude-code-mcp",
+  "name": "@mirusu400/claude-code-mcp",
   "version": "1.10.12",
   "description": "Simple MCP server for Claude Code one-shot execution",
-  "author": "Peter Steinberger",
+  "author": "mirusu400",
   "license": "MIT",
   "main": "dist/server.js",
   "bin": {
@@ -34,7 +34,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/steipete/claude-code-mcp.git"
+    "url": "git+https://github.com/mirusu400/claude-code-mcp.git"
   },
   "keywords": [
     "mcp",
@@ -45,7 +45,7 @@
     "tools"
   ],
   "bugs": {
-    "url": "https://github.com/steipete/claude-code-mcp/issues"
+    "url": "https://github.com/mirusu400/claude-code-mcp/issues"
   },
-  "homepage": "https://github.com/steipete/claude-code-mcp#readme"
+  "homepage": "https://github.com/mirusu400/claude-code-mcp#readme"
 }

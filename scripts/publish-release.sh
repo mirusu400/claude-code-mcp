@@ -84,12 +84,12 @@ gh release create "v$NEW_VERSION" \
 
 # Publish to npm
 echo "📦 Publishing to npm..."
-npm publish
+npm publish --access public
 
 echo ""
 echo "✅ Release v$NEW_VERSION published successfully!"
 echo ""
 echo "📋 Post-release checklist:"
-echo "[ ] Test the new version with: npx @steipete/claude-code-mcp@latest"
+echo "[ ] Test the new version with: npx @mirusu400/claude-code-mcp@latest"
 echo "[ ] Update any documentation if needed"
 echo "[ ] Announce the release if significant"
