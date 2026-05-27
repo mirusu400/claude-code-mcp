@@ -56,6 +56,8 @@ const mockWriteFileSync = vi.mocked(writeFileSync);
 const mockSpawn = vi.mocked(spawn);
 const mockHomedir = vi.mocked(homedir);
 
+const toPosixPath = (value: unknown): string => String(value).replace(/\\/g, '/');
+
 // Helper to setup Server mock with proper handlers
 function setupServerMock() {
   let errorHandler: any = null;
@@ -188,6 +190,22 @@ describe('ClaudeCodeServer Unit Tests', () => {
       );
     });
 
+    it('should return modern local bin path when it exists', async () => {
+      mockHomedir.mockReturnValue('/home/user');
+      mockExistsSync.mockImplementation((path) => {
+        const pathStr = toPosixPath(path);
+        return pathStr.endsWith('/.local/bin/claude') || pathStr.endsWith('/.local/bin/claude.exe');
+      });
+
+      const module = await import('../server.js');
+      const { findClaudeCli } = module;
+
+      const result = findClaudeCli();
+      expect(result).toContain('.local');
+      expect(result).toContain('bin');
+      expect(result).toContain('claude');
+    });
+
     it('should use CLAUDE_CLI_PATH when set and file exists', async () => {
       process.env.CLAUDE_CLI_PATH = '/custom/path/to/claude';
       mockExistsSync.mockImplementation((p) => {
@@ -221,6 +239,21 @@ describe('ClaudeCodeServer Unit Tests', () => {
       process.env.CLAUDE_CLI_NAME = 'my-claude';
       mockHomedir.mockReturnValue('/home/user');
       mockExistsSync.mockReturnValue(false);
+
+      const module = await import('../server.js');
+      const { findClaudeCli } = module;
+
+      const result = findClaudeCli();
+      expect(result).toBe('my-claude');
+    });
+
+    it('should not fall back to default local Claude path when custom name is set', async () => {
+      process.env.CLAUDE_CLI_NAME = 'my-claude';
+      mockHomedir.mockReturnValue('/home/user');
+      mockExistsSync.mockImplementation((path) => {
+        const pathStr = toPosixPath(path);
+        return pathStr.endsWith('/.local/bin/claude') || pathStr.endsWith('/.local/bin/claude.exe');
+      });
 
       const module = await import('../server.js');
       const { findClaudeCli } = module;
@@ -649,8 +682,8 @@ describe('ClaudeCodeServer Unit Tests', () => {
     it('should inject first-call context and persist Claude session mapping', async () => {
       mockHomedir.mockReturnValue('/home/user');
       mockExistsSync.mockImplementation((value) => {
-        const path = String(value);
-        return path === '/home/user/.claude/local/claude' || path === '/tmp';
+        const path = toPosixPath(value);
+        return path.endsWith('/.claude/local/claude') || path.endsWith('/tmp');
       });
 
       const module = await import('../server.js');
@@ -698,8 +731,11 @@ describe('ClaudeCodeServer Unit Tests', () => {
       expect(spawnArgs.at(-1)).toContain('@review the diff');
       expect(result.content[0].text).toBe('done');
       expect(result.content[1].text).toContain('claude-session');
+      expect(toPosixPath(mockWriteFileSync.mock.calls[0][0])).toBe(
+        '/home/user/.config/claude-code-mcp/sessions.json'
+      );
       expect(mockWriteFileSync).toHaveBeenCalledWith(
-        '/home/user/.config/claude-code-mcp/sessions.json',
+        expect.any(String),
         expect.stringContaining('claude-session'),
         { mode: 0o600 }
       );
@@ -708,11 +744,11 @@ describe('ClaudeCodeServer Unit Tests', () => {
     it('should resume existing Claude sessions by parent sessionId', async () => {
       mockHomedir.mockReturnValue('/home/user');
       mockExistsSync.mockImplementation((value) => {
-        const path = String(value);
+        const path = toPosixPath(value);
         return (
-          path === '/home/user/.claude/local/claude' ||
-          path === '/tmp' ||
-          path === '/home/user/.config/claude-code-mcp/sessions.json'
+          path.endsWith('/.claude/local/claude') ||
+          path.endsWith('/tmp') ||
+          path.endsWith('/.config/claude-code-mcp/sessions.json')
         );
       });
       mockReadFileSync.mockReturnValue(

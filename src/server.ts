@@ -59,7 +59,7 @@ export function resolveClaudeCliTimeoutMs(envValue = process.env.CLAUDE_CLI_TIME
  * Determine the Claude CLI command/path.
  * 1. Checks CLAUDE_CLI_PATH env var (absolute path to the CLI binary).
  * 2. Checks CLAUDE_CLI_NAME env var (custom binary name or absolute path).
- * 3. Checks local user path: ~/.claude/local/claude (+ .cmd/.exe on Windows).
+ * 3. Checks common local user install paths.
  * 4. Falls back to the CLI name (or 'claude'), relying on the system's PATH.
  */
 export function findClaudeCli(): string {
@@ -96,27 +96,41 @@ export function findClaudeCli(): string {
 
   const cliName = customCliName || 'claude';
 
-  // 3. Try local install path: ~/.claude/local/claude
-  //    On Windows, also check .cmd and .exe extensions since npm installs create .cmd wrappers
+  // 3. Try common local install paths.
+  //    Claude Code native installs commonly place the binary in ~/.local/bin.
+  //    Older/local installs may place it under ~/.claude/local.
+  //    On Windows, prefer .exe wrappers over .cmd to avoid shell execution.
   const userPath = join(homedir(), '.claude', 'local', 'claude');
+  const localBinPath = join(homedir(), '.local', 'bin', 'claude');
   const candidatePaths = isWindows
-    ? [userPath, `${userPath}.cmd`, `${userPath}.exe`]
-    : [userPath];
+    ? [
+        `${localBinPath}.exe`,
+        `${localBinPath}.cmd`,
+        localBinPath,
+        `${userPath}.exe`,
+        `${userPath}.cmd`,
+        userPath,
+      ]
+    : [localBinPath, userPath];
 
-  for (const candidate of candidatePaths) {
-    debugLog(`[Debug] Checking for Claude CLI at: ${candidate}`);
-    if (existsSync(candidate)) {
-      debugLog(`[Debug] Found Claude CLI at: ${candidate}`);
-      return candidate;
+  if (cliName === 'claude') {
+    for (const candidate of candidatePaths) {
+      debugLog(`[Debug] Checking for Claude CLI at: ${candidate}`);
+      if (existsSync(candidate)) {
+        debugLog(`[Debug] Found Claude CLI at: ${candidate}`);
+        return candidate;
+      }
     }
+    debugLog(`[Debug] Claude CLI not found at local user paths: ${candidatePaths.join(', ')}`);
+  } else {
+    debugLog(`[Debug] Skipping default Claude local paths because CLAUDE_CLI_NAME is "${cliName}".`);
   }
-  debugLog(`[Debug] Claude CLI not found at local user path: ${userPath}`);
 
   // 4. On Windows, also check common npm global install locations
-  if (isWindows) {
+  if (isWindows && cliName === 'claude') {
     const npmGlobalPaths = [
-      join(homedir(), 'AppData', 'Roaming', 'npm', 'claude.cmd'),
       join(homedir(), 'AppData', 'Roaming', 'npm', 'claude.exe'),
+      join(homedir(), 'AppData', 'Roaming', 'npm', 'claude.cmd'),
     ];
     for (const npmPath of npmGlobalPaths) {
       debugLog(`[Debug] Checking Windows npm global path: ${npmPath}`);
@@ -129,7 +143,10 @@ export function findClaudeCli(): string {
 
   // 5. Fallback to CLI name (PATH lookup)
   debugLog(`[Debug] Falling back to "${cliName}" command name, relying on spawn/PATH lookup.`);
-  console.warn(`[Warning] Claude CLI not found at local paths. Falling back to "${cliName}" in PATH. Ensure it is installed and accessible.`);
+  const fallbackReason = cliName === 'claude'
+    ? 'Claude CLI not found at local paths.'
+    : `Using custom CLAUDE_CLI_NAME "${cliName}".`;
+  console.warn(`[Warning] ${fallbackReason} Falling back to "${cliName}" in PATH. Ensure it is installed and accessible.`);
   return cliName;
 }
 
@@ -369,39 +386,22 @@ export class ClaudeCodeServer {
       tools: [
         {
           name: 'claude_code',
-          description: `Claude Code Agent: Your versatile multi-modal assistant for code, file, Git, and terminal operations via Claude CLI. Use \`workFolder\` for contextual execution.
+          description: `Claude Code Agent: delegate a task to a separate local Claude Code CLI process. Works from Codex and other MCP clients over stdio.
 
-• File ops: Create, read, (fuzzy) edit, move, copy, delete, list files, analyze/ocr images, file content analysis
-    └─ e.g., "Create /tmp/log.txt with 'system boot'", "Edit main.py to replace 'debug_mode = True' with 'debug_mode = False'", "List files in /src", "Move a specific section somewhere else"
+Use cases:
+- Second-opinion analysis, code review, debugging, and implementation planning.
+- Multi-step code, file, Git, terminal, web, and GitHub workflows.
+- File operations such as create, read, edit, move, copy, delete, list, image analysis, and content analysis.
+- Code generation, refactoring, bug fixing, test updates, changelog/version workflows, commits, pushes, tags, and PR creation.
 
-• Code: Generate / analyse / refactor / fix
-    └─ e.g. "Generate Python to parse CSV→JSON", "Find bugs in my_script.py"
-
-• Git: Stage ▸ commit ▸ push ▸ tag (any workflow)
-    └─ "Commit '/workspace/src/main.java' with 'feat: user auth' to develop."
-
-• Terminal: Run any CLI cmd or open URLs
-    └─ "npm run build", "Open https://developer.mozilla.org"
-
-• Web search + summarise content on-the-fly
-
-• Multi-step workflows  (Version bumps, changelog updates, release tagging, etc.)
-
-• GitHub integration  Create PRs, check CI status
-
-• Confused or stuck on an issue? Ask Claude Code for a second opinion, it might surprise you!
-
-**Prompt tips**
-
-1. Be concise, explicit & step-by-step for complex tasks. No need for niceties, this is a tool to get things done.
-2. For multi-line text, write it to a temporary file in the project root, use that file, then delete it.
-3. If you get a timeout, split the task into smaller steps.
-4. **Seeking a second opinion/analysis**: If you're stuck or want advice, you can ask \`claude_code\` to analyze a problem and suggest solutions. Clearly state in your prompt that you are looking for analysis only and no actual file modifications should be made.
-5. If workFolder is set to the project path, there is no need to repeat that path in the prompt and you can use relative paths for files.
-6. Claude Code is really good at complex multi-step file operations and refactorings and faster than your native edit features.
-7. Combine file operations, README updates, and Git commands in a sequence.
-8. Claude can do much more, just ask it!
-
+Important:
+1. Always set workFolder to an absolute project path for file or Git work. Then use relative paths in the prompt.
+2. The child Claude Code process has its own permission model. This wrapper defaults to permissionMode=bypassPermissions for backwards compatibility.
+3. Use permissionMode=default, acceptEdits, auto, dontAsk, or plan when you want Claude Code permission checks instead of bypassed permissions.
+4. Be explicit about whether Claude should modify files or only analyze/report.
+5. For complex work, give clear ordered steps. For very large prompts, write context to a temporary file in workFolder and reference it.
+6. If a call times out, split the task into smaller calls.
+7. Use sessionId for repeated calls that should resume the same Claude Code session; use stateless=true for independent one-shot calls.
         `,
           inputSchema: {
             type: 'object',

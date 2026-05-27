@@ -41,6 +41,14 @@ This method is suitable if you prefer not to install the server globally or want
     ```
     **Important:** Replace `/absolute/path/to/claude-mcp-server` with the actual absolute path to where you cloned the server.
 
+    For Codex CLI, build the project and add the compiled stdio server to `~/.codex/config.toml`:
+    ```toml
+    [mcp_servers.claude_code]
+    command = "node"
+    args = ["/absolute/path/to/claude-mcp-server/dist/server.js"]
+    startup_timeout_ms = 20_000
+    ```
+
 5.  **First-Time Claude CLI Permissions:**
     As mentioned in the main README, ensure you've run the Claude CLI once with `--dangerously-skip-permissions` to accept terms:
     ```bash

@@ -30,6 +30,14 @@ export class MCPTestClient extends EventEmitter {
 
   async connect(): Promise<void> {
     return new Promise((resolve, reject) => {
+      let settled = false;
+      const fail = (error: Error) => {
+        if (!settled) {
+          settled = true;
+          reject(error);
+        }
+      };
+
       this.server = spawn('node', [this.serverPath], {
         env: { ...process.env, ...this.env },
         stdio: ['pipe', 'pipe', 'pipe'],
@@ -44,23 +52,51 @@ export class MCPTestClient extends EventEmitter {
       });
 
       this.server.on('error', (error) => {
-        reject(error);
+        fail(error);
       });
 
-      this.server.on('spawn', () => {
-        resolve();
+      this.server.on('exit', (code, signal) => {
+        const error = new Error(`MCP server exited with code ${code ?? 'null'} and signal ${signal ?? 'null'}`);
+        for (const pending of this.pendingRequests.values()) {
+          pending.reject(error);
+        }
+        this.pendingRequests.clear();
+        fail(error);
+      });
+
+      this.server.on('spawn', async () => {
+        try {
+          await this.initialize();
+          if (!settled) {
+            settled = true;
+            resolve();
+          }
+        } catch (error) {
+          fail(error instanceof Error ? error : new Error(String(error)));
+        }
       });
     });
   }
 
   async disconnect(): Promise<void> {
-    if (this.server) {
-      this.server.kill();
-      await new Promise((resolve) => {
-        this.server!.on('exit', resolve);
-      });
-      this.server = null;
+    const server = this.server;
+    if (!server) {
+      return;
     }
+
+    this.server = null;
+    if (server.exitCode !== null || server.signalCode !== null) {
+      return;
+    }
+
+    server.kill();
+    await new Promise<void>((resolve) => {
+      const timer = setTimeout(resolve, 5000);
+      server.once('exit', () => {
+        clearTimeout(timer);
+        resolve();
+      });
+    });
   }
 
   private handleData(data: string): void {
@@ -107,6 +143,33 @@ export class MCPTestClient extends EventEmitter {
         }
       }, 30000);
     });
+  }
+
+  private sendNotification(method: string, params?: any): void {
+    const notification = {
+      jsonrpc: '2.0',
+      method,
+      params,
+    };
+
+    this.server?.stdin?.write(JSON.stringify(notification) + '\n');
+  }
+
+  private async initialize(): Promise<void> {
+    const response = await this.sendRequest('initialize', {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: {
+        name: 'claude-code-mcp-test-client',
+        version: '0.0.0',
+      },
+    });
+
+    if (response.error) {
+      throw new Error(`Initialize failed: ${response.error.message}`);
+    }
+
+    this.sendNotification('notifications/initialized');
   }
 
   async callTool(name: string, args: any): Promise<any> {

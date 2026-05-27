@@ -132,6 +132,39 @@ Cursor uses `mcp.json`.
 - **Windows:** `%APPDATA%\\Cursor\\mcp.json`
 - **Linux:** `~/.config/cursor/mcp.json`
 
+#### Codex CLI
+
+Codex stores MCP servers in `~/.codex/config.toml`. You can add this server with the Codex CLI:
+
+```bash
+codex mcp add claude_code -- npx -y @steipete/claude-code-mcp@latest
+```
+
+On Windows, launching `npx` through `cmd` is the most reliable form:
+
+```toml
+[mcp_servers.claude_code]
+command = "cmd"
+args = ["/c", "npx", "-y", "@steipete/claude-code-mcp@latest"]
+startup_timeout_ms = 20_000
+```
+
+For a local checkout, build first and point Codex directly at the compiled server:
+
+```toml
+[mcp_servers.claude_code]
+command = "node"
+args = ["C:\\path\\to\\claude-code-mcp\\dist\\server.js"]
+startup_timeout_ms = 20_000
+```
+
+If Codex cannot find the Claude CLI because its MCP environment has a different `PATH`, set `CLAUDE_CLI_PATH` explicitly:
+
+```toml
+[mcp_servers.claude_code.env]
+CLAUDE_CLI_PATH = "C:\\Users\\you\\.local\\bin\\claude.exe"
+```
+
 #### Windsurf
 
 Windsurf users use `mcp_config.json`
@@ -243,7 +276,7 @@ This example illustrates `claude_code` handling a more complex, multi-step task,
 ## Troubleshooting
 
 - **"Command not found" (claude-code-mcp):** If installed globally, ensure the npm global bin directory is in your system's PATH. If using `npx`, ensure `npx` itself is working.
-- **"Command not found" (claude or ~/.claude/local/claude):** Ensure the Claude CLI is installed correctly. Run `claude/doctor` or check its documentation.
+- **"Command not found" (claude, ~/.local/bin/claude, or ~/.claude/local/claude):** Ensure the Claude CLI is installed correctly. Run `claude/doctor` or check its documentation.
 - **Permissions Issues:** Make sure you've run the "Important First-Time Setup" step. If the parent MCP client is waiting on its own approval flow, configure that client's MCP permissions or use Claude Code's native `claude mcp serve` path; this server can only pass flags to the child Claude Code process it starts.
 - **JSON Errors from Server:** If `MCP_CLAUDE_DEBUG` is `true`, error messages or logs might interfere with MCP's JSON parsing. Set to `false` for normal operation.
 - **ESM/Import Errors:** Ensure you are using Node.js v20 or later.
@@ -283,7 +316,7 @@ For detailed testing documentation, see our [E2E Testing Guide](./docs/e2e-testi
 The server's behavior can be customized using these environment variables:
 
 - `CLAUDE_CLI_PATH`: Absolute path to the Claude CLI executable.
-  - Default: Checks `~/.claude/local/claude`, then falls back to `claude` (expecting it in PATH).
+  - Default: Checks common local install paths such as `~/.local/bin/claude` and `~/.claude/local/claude`, then falls back to `claude` (expecting it in PATH).
 - `MCP_CLAUDE_DEBUG`: Set to `true` for verbose debug logging from this MCP server. Default: `false`.
 
 These can be set in your shell environment or within the `env` block of your `mcp.json` server configuration (though the `env` block in `mcp.json` examples was removed for simplicity, it's still a valid way to set them for the server process if needed).
